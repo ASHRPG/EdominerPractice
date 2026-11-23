@@ -1,0 +1,91 @@
+﻿Imports System
+Imports System.Data.SqlClient
+Imports System.Configuration
+Imports System.Data
+Imports System.Web.UI
+Imports System.Web.Script
+
+Public Class WebForm1
+    Inherits System.Web.UI.Page
+    Dim connstr As String = ConfigurationManager.ConnectionStrings("EdominerPracticeDB").ConnectionString
+    Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+        Try
+            If Not IsPostBack Then
+                BindEmployees()
+            End If
+        Catch ex As Exception
+            lblError.Text = ex.Message
+        End Try
+    End Sub
+
+    Private Sub BindEmployees()
+        Try
+            Dim con As New SqlConnection(connstr)
+            Dim cmd As New SqlCommand("Select * from Employees", con)
+            Dim sda As New SqlDataAdapter(cmd)
+            Dim dt As New DataTable()
+            sda.Fill(dt)
+            gvEmployees.DataSource = dt
+            gvEmployees.DataBind()
+        Catch ex As Exception
+            LogError(ex)
+            lblError.Text = "Unable to load employee details. Please try again."
+        End Try
+    End Sub
+
+    Private Sub LogError(ex As Exception)
+        Throw New NotImplementedException()
+    End Sub
+
+    Protected Sub gvEmployees_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        Try
+            Using con As New SqlConnection(connstr)
+                If e.CommandName = "ViewDetails" Then
+                    Dim employeeid As Integer = Convert.ToInt32(e.CommandArgument)
+                    Dim sql As String = "Select EmployeeName, Department, Designation, Salary, JoinDate, Email, Phone, Address from Employees where EmployeeID = @employeeid"
+                    Using cmd As New SqlCommand(sql, con)
+                        cmd.Parameters.AddWithValue("@employeeid", employeeid)
+                        con.Open()
+                        Using reader As SqlDataReader = cmd.ExecuteReader()
+                            If reader.Read() Then
+                                lblEmployeeName.Text = reader("EmployeeName").ToString()
+                                lblDepartment.Text = reader("Department").ToString()
+                                lblDesignation.Text = reader("Designation").ToString()
+                                lblSalary.Text = Convert.ToDecimal(reader("Salary")).ToString("N2")
+                                lblJoinDate.Text = Convert.ToDateTime(reader("JoinDate")).ToString("yyyy-MM-dd")
+                                lblEmail.Text = reader("Email").ToString()
+                                lblPhone.Text = reader("Phone").ToString()
+                                lblAddress.Text = reader("Address").ToString()
+                            Else
+                                lblError.Text = "Employee not found."
+                                Return
+                            End If
+                        End Using
+                    End Using
+                    Dim modalScript As String = "window.addEventListener('load', function() {" &
+                    "var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('employeemodal'));" & "modal.show();" & "});"
+                    ClientScript.RegisterStartupScript(
+                    Me.GetType(),
+                        "OpenEmployeeModal",
+                        modalScript,
+                        True
+                    )
+                ElseIf e.CommandName = "EditDetails" Then
+                    Dim employeeid As Integer = Convert.ToInt32(e.CommandArgument)
+                    Dim sql As String = "UPDATE INTO Employees Set EmployeeName = @EmployeeName, Department = @Department"
+                End If
+            End Using
+        Catch ex As Exception
+            lblError.Text = ex.Message
+        End Try
+
+    End Sub
+
+    Protected Sub AddNewEmployee_Click(sender As Object, e As EventArgs)
+        Response.Redirect("~/AddEmployee.aspx")
+    End Sub
+
+    'Protected Sub btnOpenModal_Click(sender As Object, e As EventArgs)
+    '    lblEmployeeName.Text = 
+    'End Sub
+End Class
